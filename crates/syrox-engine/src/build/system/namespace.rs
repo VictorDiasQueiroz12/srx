@@ -18,7 +18,7 @@ use crate::{
 use std::{
     fs::File,
     io,
-    os::fd::{AsFd as _, AsRawFd as _, BorrowedFd, OwnedFd},
+    os::fd::{AsFd as _, AsRawFd, BorrowedFd, OwnedFd},
     path::Path,
     time::Instant,
 };
@@ -192,7 +192,7 @@ impl<'a> SystemBuildNamespaceResources<'a> {
         let kept: Vec<_> = self
             .data_descriptors()
             .iter()
-            .map(|fd| fd.as_raw_fd())
+            .map(AsRawFd::as_raw_fd)
             .collect();
         crate::execution::native::close_inherited_descriptors(&kept)?;
         // SAFETY: caller guarantees dedicated lifecycle and namespace fork safety.

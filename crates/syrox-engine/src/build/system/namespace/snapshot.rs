@@ -50,7 +50,7 @@ pub(super) fn verify(
 
 /// Private regular-file snapshots, retained by their namespace resource owner.
 /// Keep their protected directory until the nonrecursive binds are established;
-/// inherited f_paths must be reopened with the same inode in the new namespace.
+/// inherited `f_paths` must be reopened with the same inode in the new namespace.
 /// Content is rehashed before gate readiness and again by the payload entry.
 pub(super) fn bytes(
     directory: &Path,
