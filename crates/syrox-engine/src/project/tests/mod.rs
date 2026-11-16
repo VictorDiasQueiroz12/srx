@@ -30,6 +30,7 @@ mod package_set;
 mod recipe_ref;
 mod reference_graph;
 mod refresh;
+mod systems;
 mod versioned;
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -78,7 +79,7 @@ fn package_plan(source: &str) -> Result<crate::plan::Plan, ProjectOperationError
 }
 
 // Low-level value serialization tests deliberately bypass destination selection.
-// The public project planner rejects these values as Os/Shell destinations.
+// The public project planner rejects these values as Services/Shell destinations.
 fn value_projection_plan(
     path: &Path,
     config: &CheckConfiguration,

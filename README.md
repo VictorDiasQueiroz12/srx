@@ -20,11 +20,29 @@ locks their inputs, and gives you an inspectable plan before downloading sources
 or building.
 
 - Compose packages with typed recipes, modules, and explicit dependencies.
-- Declare `Shell` and `Os` environments alongside their services and configuration.
+- Declare `Shell` and `Services` environments alongside their services and configuration.
 - Lock local projects and pinned GitHub inputs.
 - Get diagnostics, completion, navigation, and formatting in your editor.
 
 Syrox is experimental and currently targets Linux.
+
+`srx system inspect --builder-directory /existing/scratch --json` also reports
+filesystem capacity and observed project quotas without creating the directory
+or changing quotas; see [system builders](docs/system-builders.md).
+
+`srx system inspect --json` reports read-only kernel, disk identity, partition,
+storage topology and mount-namespace observations. It needs no project, Store or
+external utilities. Full-system builds and provisioning are still being
+implemented in the [Linux system roadmap](docs/design/linux-system-management.md).
+
+`srx system plan ./project#host --json` compares a locked `System` or
+`HostConfiguration` with read-only Linux observations, including selected sysctls
+and a System storage binding attempt. [System declarations](docs/system-declarations.md)
+explain unresolved checks and the separate authority needed to apply changes.
+
+The image libraries compose authenticated initramfs, dm-verity trees, GPT RAW and qcow2
+streams in the chunked Store; see [system images](docs/system-images.md) for their
+contracts and verified limits. Bootable system images remain under implementation.
 
 ## The language
 
@@ -129,7 +147,7 @@ services.nginx = {
 };
 ```
 
-This declares an `os` output. Omitted `libc` selects GNU; add `libc = "musl";`
+This declares an `os` output of type `Services`. Omitted `libc` selects GNU; add `libc = "musl";`
 to select musl. The set exposes normalized `platform.system`/`platform.libc` and
 `buildPlatform` (Linux x86_64 GNU). Package calls inherit the set's platform;
 contradictory overrides fail before acquisition. Direct package calls default to
@@ -159,6 +177,9 @@ srx info .#hello
 srx build .#hello --dry-run
 ```
 
+For offline builders, [import an explicitly selected source file](docs/source-import.md)
+against its locked SHA-256 and size with `srx project import-source`.
+
 Public aliases share the same lazy recipe instance. Private bindings stay private;
 inspection and dry runs do not acquire sources or initialize a Store.
 
@@ -172,16 +193,20 @@ Configure the service installation once, then operate it by profile:
 
 ```sh
 srx project lock .
-srx os init .#os --name web --user --config ./build.toml
-srx os apply --profile web
-srx os status --profile web
-srx os logs nginx --profile web --follow
-srx os stop --profile web
+srx services init .#os --name web --user --config ./build.toml
+srx services apply --profile web
+srx services status --profile web
+srx services logs nginx --profile web --follow
+srx services stop --profile web
 ```
 
 See [installation profiles](docs/os-profiles.md) for ownership, rollback,
 recovery and Linux requirements, and [artifact selection](docs/artifacts.md)
 for automatic consumption of explicitly authorized local bundles.
+
+Existing projects and scripts must follow the
+[Services migration](docs/migrations/services.md) to replace `Os` and `srx os`
+and explicitly refresh standard-library locks.
 
 Package modules use ordinary `if`, `==`/`!=`, literal `match` and static traits.
 `package_traits::Package` associates an implementation with `Settings`,

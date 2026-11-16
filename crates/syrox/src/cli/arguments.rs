@@ -1,4 +1,6 @@
-use super::commands::{build, bundle, format, host, install_self, os, run, session, shell, store};
+use super::commands::{
+    build, bundle, format, host, install_self, run, services, session, shell, store, system,
+};
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
@@ -46,16 +48,21 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: HostCommand,
     },
+    /// Inspect Linux resources and explicitly reconcile retained builder scratch.
+    System {
+        #[command(subcommand)]
+        command: system::Command,
+    },
     /// Build a declared package with automatic source acquisition and retention.
     Build(build::Arguments),
     /// Run a declared application with its verified runtime closure.
     Run(run::Arguments),
     /// Run an exposed managed command with temporary Shell configuration.
     Shell(shell::Arguments),
-    /// Prepare, inspect and apply retained Os generations.
-    Os {
+    /// Prepare, inspect and apply retained Services generations.
+    Services {
         #[command(subcommand)]
-        command: os::Command,
+        command: services::Command,
     },
     /// Inspect or recover recorded managed Shell sessions.
     Session {
@@ -105,7 +112,7 @@ pub(crate) enum ProjectCommand {
         path: Option<PathBuf>,
         #[arg(short = 'f', long)]
         file: Option<PathBuf>,
-        /// Select one Os or Shell output and its referenced packages.
+        /// Select a Services, Shell, System or `HostConfiguration` output and its recipes.
         #[arg(long)]
         output: Option<String>,
     },
@@ -121,6 +128,8 @@ pub(crate) enum ProjectCommand {
         #[arg(long)]
         allow_https: String,
     },
+    /// Import local bytes against a locked source pin, without network access.
+    ImportSource(super::commands::project::ImportSourceArguments),
     /// Inspect a verified source archive without extracting it.
     InspectSource {
         path: PathBuf,
