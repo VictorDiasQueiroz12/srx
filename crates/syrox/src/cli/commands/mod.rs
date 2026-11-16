@@ -11,9 +11,10 @@ pub(crate) mod format;
 pub(crate) mod host;
 #[allow(unsafe_code)]
 pub(crate) mod install_self;
-pub(crate) mod os;
 pub(crate) mod project;
 pub(crate) mod run;
+pub(crate) mod services;
 pub(crate) mod session;
 pub(crate) mod shell;
 pub(crate) mod store;
+pub(crate) mod system;

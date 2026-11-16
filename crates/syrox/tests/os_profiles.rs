@@ -36,30 +36,39 @@ fn init_binds_identity_without_building_and_recorded_commands_work_offline() {
     std::fs::create_dir(&project).unwrap();
     std::fs::write(
         project.join("main.srx"),
-        "outputs { os: Os = Os { pkgs = []; services = []; }; }",
+        "outputs { os: Services = Services { pkgs = []; services = []; }; }",
     )
     .unwrap();
     let reference = format!("{}#os", project.display());
     let report = success(
         home.path(),
         &[
-            "os", "init", &reference, "--name", "web", "--user", "--json",
+            "services", "init", &reference, "--name", "web", "--user", "--json",
         ],
     );
     assert_eq!(report["applied"], false);
     assert_eq!(report["manager_verified"], false);
     let path = home.path().join("config/syrox/os/web.json");
     let profile = syrox_engine::deployment::os::profile::read_os_profile(&path).unwrap();
+    assert_eq!(profile.version, 1);
     assert_eq!(report["installation"], profile.installation_id);
+    let original_profile = std::fs::read(&path).unwrap();
     assert!(!profile.store.exists());
     assert_eq!(
         std::fs::read_dir(&profile.units).unwrap().count(),
         0
     );
+    // Recorded operations must still work for an installation whose project
+    // has not yet migrated its old type or standard-library lock.
+    std::fs::write(
+        project.join("main.srx"),
+        "outputs { os: Os = Os { pkgs = []; services = []; }; }",
+    )
+    .unwrap();
     let status = success(
         home.path(),
         &[
-            "os",
+            "services",
             "status",
             "--profile",
             "web",
@@ -73,7 +82,7 @@ fn init_binds_identity_without_building_and_recorded_commands_work_offline() {
         success(
             home.path(),
             &[
-                "os",
+                "services",
                 "list",
                 "--profile",
                 "web",
@@ -86,7 +95,7 @@ fn init_binds_identity_without_building_and_recorded_commands_work_offline() {
         success(
             home.path(),
             &[
-                "os",
+                "services",
                 "stop",
                 "--profile",
                 "web",
@@ -95,12 +104,13 @@ fn init_binds_identity_without_building_and_recorded_commands_work_offline() {
         )["changed"],
         false
     );
+    assert_eq!(std::fs::read(&path).unwrap(), original_profile);
     let before = std::fs::read(&path).unwrap();
     assert!(
         !run(
             home.path(),
             &[
-                "os", "init", &reference, "--name", "web"
+                "services", "init", &reference, "--name", "web"
             ]
         )
         .status
@@ -120,7 +130,10 @@ fn init_binds_identity_without_building_and_recorded_commands_work_offline() {
     for command in [
         "status", "list", "stop", "apply", "recover",
     ] {
-        let output = run(home.path(), &["os", command, "--profile", "web"]);
+        let output = run(
+            home.path(),
+            &["services", command, "--profile", "web"],
+        );
         assert!(!output.status.success());
         assert!(
             String::from_utf8_lossy(&output.stderr).contains("identity differs"),
@@ -140,7 +153,7 @@ fn profile_execution_cannot_mix_explicit_authority_and_rejects_profile_symlinks(
     let mixed = run(
         home.path(),
         &[
-            "os",
+            "services",
             "apply",
             "--profile",
             "web",
@@ -158,7 +171,7 @@ fn profile_execution_cannot_mix_explicit_authority_and_rejects_profile_symlinks(
     let output = run(
         home.path(),
         &[
-            "os",
+            "services",
             "status",
             "--profile",
             "web",
