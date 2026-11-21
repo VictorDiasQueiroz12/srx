@@ -56,7 +56,8 @@ the CLI:
 ```sh
 git clone https://github.com/ryro-hq/srx.git
 cd srx
-rustup toolchain install --no-update --target x86_64-unknown-linux-musl
+rustup toolchain install --no-update
+rustup target add x86_64-unknown-linux-musl
 export RUSTFLAGS="-C target-feature=+crt-static" LZMA_API_STATIC=1
 export CC_x86_64_unknown_linux_musl=musl-gcc
 export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc
