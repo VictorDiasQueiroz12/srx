@@ -12,7 +12,7 @@ fn program(text: &str) -> Result<CheckedProgram, Vec<crate::diagnostic::Diagnost
     for (name, text) in [
         (
             "std/main.srx",
-            "mod std { pub enum Bool { False, True } pub use option::Option; pub use result::Result; pub use list::map; pub use maps::{OrderedMap, MapKey, MapEntry, map_from_entries, map_empty}; pub value ConfigText(str); }",
+            "mod std { pub enum Bool { False, True } pub use option::Option; pub use result::Result; pub use list::{map, filter_map, filter}; pub use maps::{OrderedMap, MapKey, MapEntry, map_from_entries, map_empty}; pub value ConfigText(str); }",
         ),
         (
             "std/option.srx",
@@ -73,6 +73,61 @@ fn output(result: &RealizedProgram, name: &str) -> String {
         panic!("{:?}", root.diagnostics());
     };
     text.clone()
+}
+
+#[test]
+fn filter_map_keeps_only_selected_items_in_order() {
+    let program = run(r#"
+        resource R(int);
+        value I(int);
+        value Key(str);
+        fn select_and_map(item: R) -> std::Option<I> {
+            let key: Key = "${item}";
+            match key {
+                "1" => std::Option::Some(I(10)),
+                "3" => std::Option::Some(I(30)),
+                _ => std::Option::None,
+            }
+        }
+        fn select(item: I) -> std::Option<I> {
+            match item {
+                2 => std::Option::None,
+                _ => std::Option::Some(item),
+            }
+        }
+        outputs {
+            mapped: [I] = std::filter_map<R, I>([R(1), R(2), R(3)], select_and_map);
+            mapped_empty: [I] = std::filter_map<R, I>([], select_and_map);
+            filtered: [I] = std::filter<I>([I(1), I(2), I(3)], select);
+            filtered_empty: [I] = std::filter<I>([], select);
+        }
+        "#);
+    assert!(program.is_success(), "{program:?}");
+    for (name, expected) in [
+        ("mapped", &[10, 30][..]),
+        ("mapped_empty", &[]),
+        ("filtered", &[1, 3]),
+        ("filtered_empty", &[]),
+    ] {
+        let root = program
+            .roots()
+            .find(|root| root.name() == name)
+            .unwrap();
+        let Value::List {
+            items,
+            ..
+        } = root.value().unwrap()
+        else {
+            panic!("expected a list for {name}");
+        };
+        assert_eq!(items.len(), expected.len(), "{name}");
+        for (item, expected) in items.iter().zip(expected) {
+            assert!(
+                matches!(item, Value::Nominal { value: PrimitiveValue::Int(value), .. } if value == expected),
+                "{name}: expected {expected}, got {item:?}"
+            );
+        }
+    }
 }
 
 #[test]
