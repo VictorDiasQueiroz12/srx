@@ -145,6 +145,9 @@ configure the integration with its absolute path. The integrations use
 - [VS Code (`ryro-hq/srx-vscode`)](https://github.com/ryro-hq/srx-vscode)
 - [OpenCode (`ryro-hq/srx-opencode`)](https://github.com/ryro-hq/srx-opencode)
 
+See the [editor compatibility matrix](docs/editor-compatibility.md) for the
+supported pre-release combinations, how to install them, and what was tested.
+
 ## Linux system management
 
 `srx system inspect --builder-directory /existing/scratch --json` also reports
