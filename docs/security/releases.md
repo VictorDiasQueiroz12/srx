@@ -105,7 +105,9 @@ revoke credentials, retain audit evidence, issue the advisory and authorize the
 replacement. Use a separate test App or repository if practicing live administrative
 steps; a local quarantine or tabletop is not evidence of credential revocation.
 
-`@fullzer4` currently administers repository access and security reports. Access
-escalation needs a documented maintainer decision, MFA readiness and least privilege.
-Review access quarterly and after role changes. A second independent write reviewer
-and periodic recovery exercises remain explicit human follow-ups.
+[Maintainer governance](../../GOVERNANCE.md#access-review-succession-and-recovery)
+identifies who owns recovery and defines access review and handoff. The
+[v0.1.0 local quarantine drill](release-qualification-v0.1.0.md#installation-example-and-recovery)
+is evidence of local recovery only; a non-production credential revocation and
+replacement exercise remains pending. See the
+[controls record](controls.md) for outstanding independent-review evidence.
