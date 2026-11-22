@@ -2,6 +2,8 @@
 
 Open an issue to discuss changes or usage problems at https://github.com/ryro-hq/srx/issues.
 Report security vulnerabilities privately using [SECURITY.md](SECURITY.md).
+See [maintainer governance](GOVERNANCE.md) for contribution decisions, escalation,
+reviewer onboarding and succession.
 
 Use the toolchain in `rust-toolchain.toml`. Start with `cargo xtask check`.
 The [testing guide](docs/testing.md) explains portable and VM checks. Checks do not
@@ -24,9 +26,9 @@ identity and signoff, and must not impersonate a maintainer.
 PRs integrate through the required merge queue using rebase and linear history,
 with conversations resolved and all `verify` and `DCO` checks passing. The target
 queue allows one PR, requires ALLGREEN, waits up to 360 minutes, and has no bypass.
-[Security evidence](docs/security/controls.md) records rollout status. There is
-currently one write maintainer, so independent human approval is a documented gap;
-zero required approvals is temporary and is not a claim of independent review.
+[Security evidence](docs/security/controls.md) records rollout status. See the
+[independent reviewer policy](GOVERNANCE.md#independent-reviewer) for approval and
+onboarding status.
 
 Source, license and checksum changes require explicit lock updates. Preserve old
 source pins and released identities. Do not commit executables, generated archives,

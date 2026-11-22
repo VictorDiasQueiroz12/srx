@@ -52,9 +52,9 @@ passed the audit but does not qualify the old artifacts.
 | OSPS-BR-06.01 | 2 | implemented / release evidence pending | [Release/recovery procedure](releases.md), pinned workflows and trusted publication boundary; verify first actual release. |
 | OSPS-DO-06.01 | 2 | implemented | [Dependency policy](dependencies.md), README and [testing/build instructions](../testing.md). |
 | OSPS-DO-07.01 | 2 | implemented | [Dependency policy](dependencies.md), README and [testing/build instructions](../testing.md). |
-| OSPS-GV-01.01 | 2 | implemented | CONTRIBUTING, SECURITY and release/recovery docs define maintainership, access review and contribution requirements. |
-| OSPS-GV-01.02 | 2 | implemented | CONTRIBUTING, SECURITY and release/recovery docs define maintainership, access review and contribution requirements. |
-| OSPS-GV-03.02 | 2 | implemented | CONTRIBUTING, SECURITY and release/recovery docs define maintainership, access review and contribution requirements. |
+| OSPS-GV-01.01 | 2 | implemented | [Maintainer governance](../../GOVERNANCE.md#maintainer-responsibilities) identifies the current maintainer. |
+| OSPS-GV-01.02 | 2 | implemented | [Maintainer governance](../../GOVERNANCE.md#maintainer-responsibilities) defines maintainer responsibilities. |
+| OSPS-GV-03.02 | 2 | implemented | [Contribution requirements](../../CONTRIBUTING.md) and [decision criteria](../../GOVERNANCE.md#contribution-decisions-and-escalation). |
 | OSPS-LE-01.01 | 2 | verified live | Own-author DCO certification obtained; CNCF DCO2 is required and passed both PR and merge-group checks. |
 | OSPS-QA-03.01 | 2 | verified live | Required verify and DCO checks are bound to their Apps, with no bypass actors; [rollout](rollout.md). |
 | OSPS-QA-06.01 | 2 | verified live | Full portable/native/acceptance qualification passed in PR, merge group and main; verify includes dependency and workflow policy gates. |
@@ -72,12 +72,12 @@ passed the audit but does not qualify the old artifacts.
 | OSPS-DO-03.02 | 3 | implemented / release evidence pending | [Release/recovery procedure](releases.md), pinned workflows and trusted publication boundary; verify first actual release. |
 | OSPS-DO-04.01 | 3 | implemented | [Dependency policy](dependencies.md), README and [testing/build instructions](../testing.md). |
 | OSPS-DO-05.01 | 3 | implemented | [Dependency policy](dependencies.md), README and [testing/build instructions](../testing.md). |
-| OSPS-GV-04.01 | 3 | implemented | CONTRIBUTING, SECURITY and release/recovery docs define maintainership, access review and contribution requirements. |
+| OSPS-GV-04.01 | 3 | implemented | [Access review policy](../../GOVERNANCE.md#access-review-succession-and-recovery) requires candidate review before elevated access. |
 | OSPS-QA-02.02 | 3 | candidate evidence / release pending | [Both candidate SPDX documents and source/native archives checked][candidate-dependencies]; signed SPDX bindings to the final archives pending. |
 | OSPS-QA-04.02 | 3 | rollout pending | Both repositories receive the same security workflow/gate policy; verify remote enforcement after rollout. |
 | OSPS-QA-06.02 | 3 | implemented | [Testing guide](../testing.md) distinguishes portable/native/VM checks and weekly schedules. |
 | OSPS-QA-06.03 | 3 | implemented | Contribution policy requires behavior/security regression tests for major changes. |
-| OSPS-QA-07.01 | 3 | human gap | One write maintainer; no independent approval. Zero approvals temporarily; do not claim level 3 or independent review. |
+| OSPS-QA-07.01 | 3 | human gap | One write maintainer; no independent human reviewer available. Zero required approvals temporarily; [onboarding](../../GOVERNANCE.md#independent-reviewer) does not establish independent review or enforced approval. Do not claim level 3. |
 | OSPS-SA-03.02 | 3 | implemented / human review pending | Threat model covers source, worker, Store, configuration, CI, credential and recovery boundaries. |
 | OSPS-VM-04.02 | 3 | implemented policy / no exception claimed | Non-applicability requires reviewed OpenVEX evidence; unknown matching cannot become a safe result. |
 | OSPS-VM-05.01 | 3 | implemented | Known exploitable dependencies and license/source violations block; exact expiring exceptions only. |
