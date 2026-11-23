@@ -11,6 +11,14 @@ MFA is active and no members were removed. Existing secret protection and privat
 reporting remain enabled. Core rules now require `verify` and `DCO` after the
 successful default-branch rollout. No bypass or fake independent reviewer is permitted.
 
+The [v0.1.0 candidate qualification][candidate] records the exact main commit,
+CI build and VM reports, checksums, and the local installation and recovery
+exercise. Candidate evidence is not publication evidence: signing, successful
+offline attestation verification, and an immutable release are still pending.
+A later dependency audit rejected the evaluated commit. The
+[local dependency fix](release-qualification-v0.1.0.md#dependency-fix-on-the-qualification-branch)
+passed the audit but does not qualify the old artifacts.
+
 | Control | Level | Status | Evidence / remaining work |
 | --- | --- | --- | --- |
 | OSPS-AC-01.01 | 1 | verified live | Organization MFA enabled after readiness audit; both members retained; [readback](../../security/github-state.json). |
@@ -22,14 +30,14 @@ successful default-branch rollout. No bypass or fake independent reviewer is per
 | OSPS-BR-03.01 | 1 | implemented / release evidence pending | [Release/recovery procedure](releases.md), pinned workflows and trusted publication boundary; verify first actual release. |
 | OSPS-BR-03.02 | 1 | implemented / release evidence pending | [Release/recovery procedure](releases.md), pinned workflows and trusted publication boundary; verify first actual release. |
 | OSPS-BR-07.01 | 1 | verified live | Native secret scanning, non-provider patterns, validity checks and push protection enabled; [policy](../../SECURITY.md). |
-| OSPS-DO-01.01 | 1 | implemented | README, authoring/language docs and testing guide describe basic usage; release qualification still pending. |
+| OSPS-DO-01.01 | 1 | implemented | README, authoring/language docs and testing guide describe basic usage; [candidate install and VM build/run](release-qualification-v0.1.0.md#installation-example-and-recovery) exercised. |
 | OSPS-DO-02.01 | 1 | implemented | CONTRIBUTING links issues for defects and SECURITY for private reports. |
 | OSPS-GV-02.01 | 1 | implemented | Repository issues and PRs accept public discussion. |
 | OSPS-GV-03.01 | 1 | implemented | [Contribution process](../../CONTRIBUTING.md). |
 | OSPS-LE-02.01 | 1 | implemented | Apache-2.0 project LICENSE; Cargo source/license policy in deny.toml. |
-| OSPS-LE-02.02 | 1 | pending release evidence | Rust and native-package license policy is separate; license files and SBOM must be verified before publishing. |
+| OSPS-LE-02.02 | 1 | candidate evidence / review pending | [Cargo license policy and native inventory][candidate-dependencies] reviewed; confirm distribution obligations before publishing. |
 | OSPS-LE-03.01 | 1 | implemented | Root LICENSE retained. |
-| OSPS-LE-03.02 | 1 | pending release evidence | Release preflight must retain upstream notices/licenses and exact source/patch pins. |
+| OSPS-LE-03.02 | 1 | candidate gap | [Source/patch archives and notices retained][candidate-dependencies]; `yaml-edit 0.3.6` license text is missing from both payloads. |
 | OSPS-QA-01.01 | 1 | verified live | Public authoritative repository https://github.com/ryro-hq/srx. |
 | OSPS-QA-01.02 | 1 | verified live | Git history records authors and time; no history rewrite or published identity removal. |
 | OSPS-QA-02.01 | 1 | implemented | Cargo.toml/Cargo.lock; catalog also tracks source releases and qualified combinations. |
@@ -65,7 +73,7 @@ successful default-branch rollout. No bypass or fake independent reviewer is per
 | OSPS-DO-04.01 | 3 | implemented | [Dependency policy](dependencies.md), README and [testing/build instructions](../testing.md). |
 | OSPS-DO-05.01 | 3 | implemented | [Dependency policy](dependencies.md), README and [testing/build instructions](../testing.md). |
 | OSPS-GV-04.01 | 3 | implemented | CONTRIBUTING, SECURITY and release/recovery docs define maintainership, access review and contribution requirements. |
-| OSPS-QA-02.02 | 3 | pending release evidence | Byte-bound SPDX SBOMs and source/native dependency inventory required before publication. |
+| OSPS-QA-02.02 | 3 | candidate evidence / release pending | [Both candidate SPDX documents and source/native archives checked][candidate-dependencies]; signed SPDX bindings to the final archives pending. |
 | OSPS-QA-04.02 | 3 | rollout pending | Both repositories receive the same security workflow/gate policy; verify remote enforcement after rollout. |
 | OSPS-QA-06.02 | 3 | implemented | [Testing guide](../testing.md) distinguishes portable/native/VM checks and weekly schedules. |
 | OSPS-QA-06.03 | 3 | implemented | Contribution policy requires behavior/security regression tests for major changes. |
@@ -73,7 +81,7 @@ successful default-branch rollout. No bypass or fake independent reviewer is per
 | OSPS-SA-03.02 | 3 | implemented / human review pending | Threat model covers source, worker, Store, configuration, CI, credential and recovery boundaries. |
 | OSPS-VM-04.02 | 3 | implemented policy / no exception claimed | Non-applicability requires reviewed OpenVEX evidence; unknown matching cannot become a safe result. |
 | OSPS-VM-05.01 | 3 | implemented | Known exploitable dependencies and license/source violations block; exact expiring exceptions only. |
-| OSPS-VM-05.02 | 3 | pending release evidence | SPDX and Grype reports must pass before trusted publication; no release assurance from configuration alone. |
+| OSPS-VM-05.02 | 3 | candidate blocked | [Both candidate Grype reports][candidate-dependencies] showed zero matches at scan time; later Cargo audits flagged `RUSTSEC-2026-0592`. Requalify a fixed commit. |
 | OSPS-VM-05.03 | 3 | implemented / live run pending | Cargo policy on every PR/merge group; daily independent dependency audit; expiry gate. |
 | OSPS-VM-06.01 | 3 | excluded by maintainer | CodeQL excluded by explicit maintainer policy. Dependency and release vulnerability gates remain; no CodeQL coverage claimed. |
 | OSPS-VM-06.02 | 3 | excluded by maintainer | CodeQL excluded by explicit maintainer policy; compiler/lints, workflow checks, bounded fuzzing and VM gates remain. |
@@ -88,10 +96,13 @@ preparation for an honest badge submission, with maintainer attestation still ne
 | Basics and change control | Public repositories/history, README, contribution guide, PR template, issues and retained identities | Verify new queue/DCO enforcement after rollout |
 | Licensing and reporting | LICENSE, scoped Cargo policy, SECURITY and private reporting | Verify distributed package license evidence on first release |
 | Quality | Rust/language/configuration/projection tests, formatting, conservative change classification, VM lanes | Retain successful new GitHub/VM runs; no local KVM available in this implementation environment |
-| Security | MFA readback, threat model, secret scanning, vulnerability gates, audits and expiring exceptions | Maintainer review, recovery exercise and complete release evidence |
-| Release integrity | Immutable-release policy, authenticated artifacts, SPDX/Grype/provenance workflow requirements | Verify actual publication and offline verification; no SLSA level inferred |
+| Security | MFA readback, threat model, secret scanning, vulnerability gates, audits, expiring exceptions and [local quarantine drill](release-qualification-v0.1.0.md#installation-example-and-recovery) | Maintainer review and a non-production credential revocation/replacement exercise |
+| Release integrity | [Verified candidate bytes and SPDX/Grype reports][candidate-dependencies] | Resolve [candidate blockers][candidate], verify signing, actual publication and offline attestations; no SLSA level inferred |
 
 The official Scorecard action runs on main and weekly, retains SARIF for 90 days,
 and publishes results using OIDC. Its first [main run](https://github.com/ryro-hq/srx/actions/runs/39491356604)
 passed. Its numeric score is diagnostic rather than a merge gate; no score
 improvement is claimed.
+
+[candidate]: release-qualification-v0.1.0.md
+[candidate-dependencies]: release-qualification-v0.1.0.md#candidate-bytes-and-dependency-evidence
