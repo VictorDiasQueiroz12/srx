@@ -38,7 +38,14 @@ Syrox is experimental, currently targets Linux, and is licensed under
 
 ## Get started
 
-### Build the CLI
+### Install a verified release
+
+If a release is available, follow the [verified installation guide](docs/install.md)
+to download and verify `srx`. For a walkthrough on a supported build host, see
+[First ten minutes](docs/first-ten-minutes.md). If no release is available,
+build from source instead.
+
+### Build from source
 
 Use x86-64 Linux with Git, [rustup](https://rustup.rs/), HTTPS access to GitHub,
 Rust distribution servers and crates.io, and native build tools. On Ubuntu
