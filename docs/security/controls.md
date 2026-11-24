@@ -77,7 +77,7 @@ passed the audit but does not qualify the old artifacts.
 | OSPS-QA-04.02 | 3 | rollout pending | Both repositories receive the same security workflow/gate policy; verify remote enforcement after rollout. |
 | OSPS-QA-06.02 | 3 | implemented | [Testing guide](../testing.md) distinguishes portable/native/VM checks and weekly schedules. |
 | OSPS-QA-06.03 | 3 | implemented | Contribution policy requires behavior/security regression tests for major changes. |
-| OSPS-QA-07.01 | 3 | human gap | One write maintainer; no independent human reviewer available. Zero required approvals temporarily; [onboarding](../../GOVERNANCE.md#independent-reviewer) does not establish independent review or enforced approval. Do not claim level 3. |
+| OSPS-QA-07.01 | 3 | enforced / review evidence pending | Both `main` rulesets require one approving review and last-push approval with no bypass (2026-11-24). [Designated reviewer](../../GOVERNANCE.md#current-status) invited; acceptance, MFA and a first substantive review pending. Do not claim level 3 yet. |
 | OSPS-SA-03.02 | 3 | implemented / human review pending | Threat model covers source, worker, Store, configuration, CI, credential and recovery boundaries. |
 | OSPS-VM-04.02 | 3 | implemented policy / no exception claimed | Non-applicability requires reviewed OpenVEX evidence; unknown matching cannot become a safe result. |
 | OSPS-VM-05.01 | 3 | implemented | Known exploitable dependencies and license/source violations block; exact expiring exceptions only. |

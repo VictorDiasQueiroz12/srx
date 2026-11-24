@@ -51,14 +51,21 @@ alternate accounts and automation do not count as independent review.
    Making independent approval mandatory requires a separately authorized
    protection change and verification that it is enforced.
 
-There is currently **one write maintainer and no independent human reviewer
-available**. Zero required approvals is temporary and is not evidence of
-independent review. Keep the gap open in the
-[controls record](docs/security/controls.md) until a real reviewer is onboarded
-and review evidence exists. Reviewer availability alone does not satisfy
-OSPS-QA-07.01; that control also requires enforced non-author human approval.
+### Current status
+
+`@VictorDiasQueiroz12` is the designated independent reviewer. On 2026-11-24
+the maintainer decided to grant write access, limited to review, on
+`ryro-hq/srx` and `ryro-hq/srx-pkgs`; this does not include administrative,
+release or recovery access. The same day, the `main` rulesets of both
+repositories began requiring one approving review, with approval of the most
+recent push and no bypass actors. Every change to `main`, including the
+maintainer's own, therefore needs a non-author approval.
+
+The reviewer's acceptance of the invitation, MFA readiness and a first
+substantive review on a real PR are still pending. Keep OSPS-QA-07.01 open in
+the [controls record](docs/security/controls.md) until that evidence exists.
 If reviewer coverage is lost, document the gap again without weakening
-protections.
+protections; a merge that cannot obtain an independent approval waits.
 
 ## Access review, succession and recovery
 
