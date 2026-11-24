@@ -38,7 +38,15 @@ Syrox is experimental, currently targets Linux, and is licensed under
 
 ## Get started
 
-### Build the CLI
+### Install a verified release
+
+On x86-64 Linux, follow the [quick-install guide](docs/install.md#quick-install)
+to download and verify the published CLI and worker without a compiler or
+`sudo`. The guide also covers manual and offline verification. Once `srx` is on
+your `PATH`, [try the project quickstart](#check-lock-and-plan-a-project) or
+follow [First ten minutes](docs/first-ten-minutes.md).
+
+### Build from source
 
 Use x86-64 Linux with Git, [rustup](https://rustup.rs/), HTTPS access to GitHub,
 Rust distribution servers and crates.io, and native build tools. On Ubuntu
@@ -67,15 +75,15 @@ SYROX_EMBED_WORKER="$PWD/target/x86_64-unknown-linux-musl/release/syrox-worker" 
   cargo build --release --locked -p syrox --bin srx --target x86_64-unknown-linux-musl
 export PATH="$PWD/target/x86_64-unknown-linux-musl/release:$PATH"
 srx --version
+cd ..
 ```
 
 ### Check, lock, and plan a project
 
-From `srx`, return to the workspace directory. Clone the catalog and create the
-demo as its sibling, so `path:../srx-pkgs` resolves from the demo:
+From your workspace directory, clone the catalog and create the demo as its
+sibling, so `path:../srx-pkgs` resolves from the demo:
 
 ```sh
-cd ..
 git clone https://github.com/ryro-hq/srx-pkgs.git
 mkdir hello-demo
 cd hello-demo
