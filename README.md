@@ -32,6 +32,9 @@ or building.
 
 Syrox is experimental and currently targets Linux.
 
+**Get started:** [Install a verified release](docs/install.md) ·
+[First ten minutes](docs/first-ten-minutes.md) · [Build from source](#build-from-source)
+
 `srx system inspect --builder-directory /existing/scratch --json` also reports
 filesystem capacity and observed project quotas without creating the directory
 or changing quotas; see [system builders](docs/system-builders.md).
@@ -55,7 +58,7 @@ contracts and verified limits. Bootable system images remain under implementatio
 See the [language reference](docs/language.md) for checked, executable examples
 of bindings, record calls, platform conditions and shared recipes.
 
-Use packages from [syrox-pkgs](https://github.com/ryro-hq/syrox-pkgs) in your own
+Use packages from [srx-pkgs](https://github.com/ryro-hq/srx-pkgs) in your own
 environment. With the catalog checked out beside your project, save this as
 `main.srx`:
 
@@ -80,7 +83,7 @@ the recipe; your project chooses the packages and commands it exposes.
 Check and lock the catalog, then inspect your project:
 
 ```sh
-srx project lock ../syrox-pkgs
+srx project lock ../srx-pkgs
 srx project check .
 srx project lock .
 srx project plan .
@@ -93,8 +96,8 @@ srx shell .#dev --command hello --non-interactive \
     --config build.toml --store ./store -- --greeting 'Hello from Syrox!'
 ```
 
-`build.toml` supplies the host toolchain and source permissions described in
-the [catalog's setup](https://github.com/ryro-hq/syrox-pkgs#build-and-select-a-command).
+See the [first-use guide](docs/first-ten-minutes.md) for an example `build.toml`
+with the host toolchain and source permissions.
 
 ## Typed configuration
 
@@ -229,13 +232,13 @@ ordinary functions require compatible branches and exhaustive matches.
 Qualification builds and runs each required combination and verifies offline
 bundle import; a missing or failed combination prevents a release manifest.
 
-## Get started
+## Build from source
 
 The repository pins its Rust toolchain. Build the CLI and worker:
 
 ```sh
-git clone https://github.com/ryro-hq/syrox.git
-cd syrox
+git clone https://github.com/ryro-hq/srx.git
+cd srx
 rustup target add x86_64-unknown-linux-musl
 # Linux build host: install musl-gcc, pkg-config and native link tools first.
 export RUSTFLAGS="-C target-feature=+crt-static" LZMA_API_STATIC=1
