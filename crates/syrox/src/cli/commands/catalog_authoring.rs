@@ -12,13 +12,34 @@ use syrox_lang::{formatter::format_source, source::Source};
 type Error = Box<dyn std::error::Error>;
 type Snapshot = BTreeMap<PathBuf, Option<Vec<u8>>>;
 
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum Scaffold {
+    Autotools,
+    Cmake,
+    Meson,
+    Make,
+    Prebuilt,
+}
+
+impl Scaffold {
+    fn directory(self) -> &'static str {
+        match self {
+            Self::Autotools => "autotools",
+            Self::Cmake => "cmake",
+            Self::Meson => "meson",
+            Self::Make => "make",
+            Self::Prebuilt => "prebuilt",
+        }
+    }
+}
+
 #[derive(Debug, clap::Args)]
 pub(crate) struct Arguments {
     pub(crate) name: String,
     #[arg(long, default_value = ".")]
     pub(crate) path: PathBuf,
-    #[arg(long, default_value = "autotools", value_parser = ["autotools"])]
-    scaffold: String,
+    #[arg(long, value_enum, default_value = "autotools")]
+    scaffold: Scaffold,
     #[arg(long)]
     version: String,
     #[arg(long)]
@@ -31,6 +52,9 @@ pub(crate) struct Arguments {
     source_name: Option<String>,
     #[arg(long)]
     source_directory: Option<String>,
+    /// Installed command name for a prebuilt executable (defaults to the package name).
+    #[arg(long)]
+    binary_name: Option<String>,
     #[arg(long)]
     dry_run: bool,
 }
@@ -51,6 +75,12 @@ fn literal(text: &str) -> Result<String, Error> {
 impl Arguments {
     fn values(&self) -> Result<BTreeMap<&str, String>, Error> {
         let url = url::Url::parse(&self.url)?;
+        let prebuilt = matches!(self.scaffold, Scaffold::Prebuilt);
+        let valid_artifact_path = if prebuilt {
+            !url.path().ends_with('/')
+        } else {
+            url.path().ends_with(".tar.gz")
+        };
         if !self
             .name
             .as_bytes()
@@ -77,10 +107,19 @@ impl Arguments {
             || !url.username().is_empty()
             || url.password().is_some()
             || url.fragment().is_some()
-            || !url.path().ends_with(".tar.gz")
+            || !valid_artifact_path
             || self.url.bytes().any(|b| b <= 32 || b == 127)
         {
-            return Err("expected a lowercase package identifier, exact version, HTTPS .tar.gz URL and bounded SHA256 pin".into());
+            return Err("expected a lowercase package identifier, exact version, bounded SHA256 pin and HTTPS artifact URL (.tar.gz for source scaffolds)".into());
+        }
+        if (prebuilt && (self.source_name.is_some() || self.source_directory.is_some()))
+            || (!prebuilt && self.binary_name.is_some())
+        {
+            return Err("prebuilt uses --binary-name; only archive scaffolds accept source directory options".into());
+        }
+        let binary = self.binary_name.as_deref().unwrap_or(&self.name);
+        if prebuilt && (!component(binary) || binary.len() > 128) {
+            return Err("binary name must be one safe installed command name".into());
         }
         let source_name = self.source_name.as_deref().unwrap_or(&self.name);
         if !component(source_name)
@@ -102,6 +141,11 @@ impl Arguments {
             ("sha256", literal(&self.sha256)?),
             ("maximum_bytes", self.maximum_bytes.to_string()),
             ("directory", directory),
+            ("binary_name", literal(binary)?),
+            (
+                "binary_path",
+                literal(&format!("usr/bin/{binary}"))?,
+            ),
         ]))
     }
 }
@@ -202,7 +246,8 @@ fn generate_with(
     for name in ["package", "build", "releases"] {
         let scaffold = root
             .join("scaffolds")
-            .join(&args.scaffold)
+            // All scaffolds use the same exact-version selector and release data.
+            .join(if name == "build" { args.scaffold.directory() } else { "autotools" })
             .join(format!("{name}.srx.in"));
         let text = String::from_utf8(bounded(&scaffold)?)?;
         // Substitute only @{name}; shell variables and srx interpolation stay literal.
@@ -357,6 +402,42 @@ mod tests {
         }
         assert_eq!(literal("a${b}").unwrap(), "\"a\\${b}\"");
     }
+
+    #[test]
+    fn only_prebuilt_accepts_a_raw_url_and_explicit_command_name() {
+        let mut arguments = Arguments {
+            name: "sample".into(),
+            path: ".".into(),
+            scaffold: Scaffold::Prebuilt,
+            version: "1.2.3".into(),
+            url: "https://example.org/releases/sample-amd64".into(),
+            sha256: "a".repeat(64),
+            maximum_bytes: 1024,
+            source_name: None,
+            source_directory: None,
+            binary_name: Some("sample-tool".into()),
+            dry_run: true,
+        };
+        assert_eq!(
+            arguments.values().unwrap()["binary_path"],
+            "\"usr/bin/sample-tool\""
+        );
+        arguments.source_directory = Some("sample-1.2.3".into());
+        assert!(arguments.values().is_err());
+        arguments.source_directory = None;
+        arguments.binary_name = Some("../escape".into());
+        assert!(arguments.values().is_err());
+        arguments.binary_name = None;
+        for scaffold in [
+            Scaffold::Autotools,
+            Scaffold::Cmake,
+            Scaffold::Meson,
+            Scaffold::Make,
+        ] {
+            arguments.scaffold = scaffold;
+            assert!(arguments.values().is_err());
+        }
+    }
     #[test]
     fn failed_main_commit_rolls_back_the_package() {
         let temporary = tempfile::tempdir().unwrap();
@@ -411,13 +492,14 @@ pub fn recipe() -> Recipe { Recipe { package = Package { id = "sample"; dependen
         let args = Arguments {
             name: "sample".into(),
             path: path.into(),
-            scaffold: "autotools".into(),
+            scaffold: Scaffold::Autotools,
             version: "1.2.3".into(),
             url: "https://example.org/sample.tar.gz".into(),
             sha256: "a".repeat(64),
             maximum_bytes: 1024,
             source_name: None,
             source_directory: None,
+            binary_name: None,
             dry_run: false,
         };
         let edited = "inputs { catalog = \"modules:recipes\"; }\n// Kept from another editor.\n";
