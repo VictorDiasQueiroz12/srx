@@ -7,25 +7,57 @@ use super::{
 use crate::store::ContentDigest;
 use std::{collections::BTreeMap, fs, io::Write as _, path::Path};
 
+fn stable_version(version: &str) -> Option<Vec<u64>> {
+    if version.len() > 64 {
+        return None;
+    }
+    let numbers = version
+        .split('.')
+        .map(|part| {
+            if part.is_empty()
+                || (part.len() > 1 && part.starts_with('0'))
+                || !part.bytes().all(|byte| byte.is_ascii_digit())
+            {
+                return None;
+            }
+            part.parse().ok()
+        })
+        .collect::<Option<Vec<_>>>()?;
+    (2..=4)
+        .contains(&numbers.len())
+        .then_some(numbers)
+}
+
 impl Catalog {
+    fn newer_than_registered(&self, name: &str, version: &[u64]) -> bool {
+        self.packages
+            .iter()
+            .filter(|package| package.name == name)
+            .filter_map(|package| stable_version(&package.version))
+            .all(|registered| registered.as_slice() < version)
+    }
+
     pub fn updates(&self) -> Result<Vec<(String, String)>, CatalogError> {
         let mut result = Vec::new();
         for channel in &self.channels {
-            let bytes = download(&channel.releases, MAX_BYTES, &channel.origin)?;
+            if channel.signing_key.is_none() {
+                continue;
+            }
+            let bytes = download(&channel.releases, MAX_BYTES, &channel.origin)
+                .map_err(|error| invalid(format!("{} release feed: {error}", channel.name)))?;
             let html =
                 std::str::from_utf8(&bytes).map_err(|_| invalid("release feed is not UTF-8"))?;
             if let Some(version) = channel.latest(html) {
-                if !self
-                    .packages
-                    .iter()
-                    .any(|entry| entry.name == channel.name && entry.version == version)
+                if stable_version(&version)
+                    .is_some_and(|parts| self.newer_than_registered(&channel.name, &parts))
                 {
                     result.push((channel.name.clone(), version));
                 }
             } else {
-                return Err(invalid(
-                    "release feed contains no stable archives",
-                ));
+                return Err(invalid(format!(
+                    "{} release feed contains no stable archives",
+                    channel.name
+                )));
             }
         }
         Ok(result)
@@ -40,16 +72,8 @@ impl Catalog {
         version: &str,
     ) -> Result<(), CatalogError> {
         self.validate()?;
-        if version.split('.').count() < 2
-            || version
-                .split('.')
-                .any(|part| part.parse::<u64>().is_err())
-            || version.len() > 64
-        {
-            return Err(invalid(
-                "version must be an exact numbered stable release",
-            ));
-        }
+        let version_parts = stable_version(version)
+            .ok_or_else(|| invalid("version must be an exact numbered stable release"))?;
         if self
             .packages
             .iter()
@@ -64,13 +88,12 @@ impl Catalog {
             .iter()
             .find(|channel| channel.name == name)
             .ok_or_else(|| invalid("unknown official channel"))?;
-        if channel.release_policy == "even-minor"
-            && !version
-                .split('.')
-                .nth(1)
-                .and_then(|part| part.parse::<u64>().ok())
-                .is_some_and(|minor| minor.is_multiple_of(2))
-        {
+        if channel.signing_key.is_none() || channel.key_file.is_none() {
+            return Err(invalid(
+                "catalog add requires a pinned signing authority",
+            ));
+        }
+        if channel.release_policy == "even-minor" && !version_parts[1].is_multiple_of(2) {
             return Err(invalid("version is outside the stable channel"));
         }
         let templates: Vec<_> = self
@@ -85,27 +108,30 @@ impl Catalog {
             ));
         }
         let first = &templates[0];
+        let signature_url = first
+            .signature_url
+            .as_ref()
+            .map(|url| url.replace(&first.version, version))
+            .ok_or_else(|| invalid("catalog add requires a detached signature"))?;
         let source_url = first.source_url.replace(&first.version, version);
+        if source_url == first.source_url || first.signature_url.as_ref() == Some(&signature_url) {
+            return Err(invalid(
+                "source and signature URLs must be version-specific",
+            ));
+        }
         let bytes = download(
             &source_url,
             first.source_maximum_bytes,
             &channel.origin,
         )?;
         let hash = ContentDigest::sha256(&bytes).to_string();
-        let signature_url = first
-            .signature_url
-            .as_ref()
-            .map(|url| url.replace(&first.version, version));
-        if let Some(signature_url) = &signature_url {
-            verify_signature(
-                root,
-                channel,
-                &bytes,
-                &download(signature_url, 64 * 1024, &channel.origin)?,
-            )?;
-        } else if channel.signing_key.is_some() {
-            return Err(invalid("signed release lacks a signature"));
-        }
+        verify_signature(
+            root,
+            channel,
+            &bytes,
+            &download(&signature_url, 64 * 1024, &channel.origin)?,
+        )?;
+        let signature_url = Some(signature_url);
         if self.schema == 2 {
             let mut next = self.clone();
             for mut entry in templates {
@@ -248,23 +274,33 @@ impl Channel {
             .filter_map(|suffix| {
                 let end = suffix.find(&self.archive_suffix)?;
                 let version = &suffix[..end];
-                if version.len() > 64 {
-                    return None;
-                }
-                let numbers: Vec<u64> = version
-                    .split('.')
-                    .map(str::parse)
-                    .collect::<Result<_, _>>()
-                    .ok()?;
-                if numbers.len() < 2
-                    || numbers.len() > 4
-                    || (self.release_policy == "even-minor" && !numbers[1].is_multiple_of(2))
-                {
+                let numbers = stable_version(version)?;
+                if self.release_policy == "even-minor" && !numbers[1].is_multiple_of(2) {
                     return None;
                 }
                 Some((numbers, version.to_owned()))
             })
             .max_by(|left, right| left.0.cmp(&right.0))
             .map(|(_, version)| version)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stable_versions_compare_numerically_and_exclude_aliases() {
+        for invalid in [
+            "1",
+            "1.02",
+            "+1.2",
+            "1..2",
+            "1.2rc2",
+            "1.2.3.4.5",
+        ] {
+            assert!(stable_version(invalid).is_none(), "{invalid}");
+        }
+        assert!(stable_version("1.10.0") > stable_version("1.2.9"));
     }
 }
