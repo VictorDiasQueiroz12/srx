@@ -444,6 +444,8 @@ fn qualify_https_response(
     gzip: bool,
     expected: &str,
 ) -> Result<()> {
+    const MAX_RESPONSE: u64 = 16 * 1024;
+
     let encoding = if gzip {
         "Accept-Encoding: gzip\r\n"
     } else {
@@ -455,7 +457,6 @@ fn qualify_https_response(
     )?;
     stream.flush()?;
     let mut bytes = Vec::new();
-    const MAX_RESPONSE: u64 = 16 * 1024;
     stream
         .take(MAX_RESPONSE + 1)
         .read_to_end(&mut bytes)?;
@@ -504,103 +505,6 @@ fn check_https_response(bytes: &[u8], gzip: bool, expected: &str) -> Result<()> 
         return Err("HTTPS qualification response differs".into());
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod https_tests {
-    use super::*;
-
-    #[test]
-    fn https_response_requires_status_exact_body_and_decodable_gzip() {
-        let body = "verified response";
-        let plain = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nverified response";
-        assert!(check_https_response(plain, false, body).is_ok());
-        assert!(check_https_response(plain, true, body).is_err());
-        assert!(check_https_response(plain, false, "verified").is_err());
-        assert!(
-            check_https_response(
-                b"HTTP/1.0 404 Not Found\r\n\r\nverified response",
-                false,
-                body
-            )
-            .is_err()
-        );
-        let mut response = b"HTTP/1.1 200 OK\r\nContent-Encoding: GZip\r\n\r\n".to_vec();
-        let mut encoder = flate2::write::GzEncoder::new(&mut response, flate2::Compression::fast());
-        encoder.write_all(body.as_bytes()).unwrap();
-        encoder.finish().unwrap();
-        assert!(check_https_response(&response, true, body).is_ok());
-        response.pop();
-        assert!(check_https_response(&response, true, body).is_err());
-    }
-
-    #[test]
-    fn https_uses_its_ephemeral_ca_and_validates_hostname() {
-        use rustls::{
-            ServerConfig, ServerConnection,
-            pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject as _},
-        };
-
-        let fixture = TlsProbe::new(false).unwrap();
-        let unrelated = TlsProbe::new(false).unwrap();
-        let certificate = CertificateDer::from_pem_slice(fixture.files[0].1.as_bytes()).unwrap();
-        let key = PrivateKeyDer::from_pem_slice(fixture.files[1].1.as_bytes()).unwrap();
-        let server = Arc::new(
-            ServerConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
-                .with_safe_default_protocol_versions()
-                .unwrap()
-                .with_no_client_auth()
-                .with_single_cert(vec![certificate], key)
-                .unwrap(),
-        );
-        for (client, hostname, accepted) in [
-            (&fixture.client, "localhost", true),
-            (&fixture.client, "wrong.example", false),
-            (&unrelated.client, "localhost", false),
-        ] {
-            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-            let socket = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
-            let (mut peer, _) = listener.accept().unwrap();
-            std::thread::scope(|scope| {
-                let server = Arc::clone(&server);
-                let worker = scope.spawn(move || {
-                    let timeout = Some(Duration::from_secs(2));
-                    peer.set_read_timeout(timeout).unwrap();
-                    peer.set_write_timeout(timeout).unwrap();
-                    let mut connection = ServerConnection::new(server).unwrap();
-                    while connection.is_handshaking() {
-                        connection.complete_io(&mut peer)?;
-                    }
-                    let mut stream = StreamOwned::new(connection, peer);
-                    let mut request = Vec::new();
-                    let mut byte = [0_u8; 1];
-                    while !request.ends_with(b"\r\n\r\n") && request.len() < 256 {
-                        stream.read_exact(&mut byte)?;
-                        request.push(byte[0]);
-                    }
-                    assert!(request.starts_with(b"GET / HTTP/1.0\r\nHost: localhost\r\n"));
-                    stream.write_all(b"HTTP/1.0 200 OK\r\n\r\nready")?;
-                    stream.conn.send_close_notify();
-                    stream.flush()
-                });
-                socket
-                    .set_read_timeout(Some(Duration::from_secs(2)))
-                    .unwrap();
-                socket
-                    .set_write_timeout(Some(Duration::from_secs(2)))
-                    .unwrap();
-                let client = ClientConnection::new(
-                    Arc::clone(client),
-                    ServerName::try_from(hostname).unwrap(),
-                )
-                .unwrap();
-                let result =
-                    qualify_https_response(StreamOwned::new(client, socket), false, "ready");
-                assert_eq!(result.is_ok(), accepted, "{hostname}: {result:?}");
-                assert_eq!(worker.join().unwrap().is_ok(), accepted);
-            });
-        }
-    }
 }
 
 struct NativeConfiguration(tempfile::TempDir);
@@ -799,5 +703,102 @@ impl NativeConfiguration {
 impl Drop for NativeConfiguration {
     fn drop(&mut self) {
         let _ = fs::set_permissions(self.0.path(), fs::Permissions::from_mode(0o700));
+    }
+}
+
+#[cfg(test)]
+mod https_tests {
+    use super::*;
+
+    #[test]
+    fn https_response_requires_status_exact_body_and_decodable_gzip() {
+        let body = "verified response";
+        let plain = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nverified response";
+        assert!(check_https_response(plain, false, body).is_ok());
+        assert!(check_https_response(plain, true, body).is_err());
+        assert!(check_https_response(plain, false, "verified").is_err());
+        assert!(
+            check_https_response(
+                b"HTTP/1.0 404 Not Found\r\n\r\nverified response",
+                false,
+                body
+            )
+            .is_err()
+        );
+        let mut response = b"HTTP/1.1 200 OK\r\nContent-Encoding: GZip\r\n\r\n".to_vec();
+        let mut encoder = flate2::write::GzEncoder::new(&mut response, flate2::Compression::fast());
+        encoder.write_all(body.as_bytes()).unwrap();
+        encoder.finish().unwrap();
+        assert!(check_https_response(&response, true, body).is_ok());
+        response.pop();
+        assert!(check_https_response(&response, true, body).is_err());
+    }
+
+    #[test]
+    fn https_uses_its_ephemeral_ca_and_validates_hostname() {
+        use rustls::{
+            ServerConfig, ServerConnection,
+            pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject as _},
+        };
+
+        let fixture = TlsProbe::new(false).unwrap();
+        let unrelated = TlsProbe::new(false).unwrap();
+        let certificate = CertificateDer::from_pem_slice(fixture.files[0].1.as_bytes()).unwrap();
+        let key = PrivateKeyDer::from_pem_slice(fixture.files[1].1.as_bytes()).unwrap();
+        let server = Arc::new(
+            ServerConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+                .with_safe_default_protocol_versions()
+                .unwrap()
+                .with_no_client_auth()
+                .with_single_cert(vec![certificate], key)
+                .unwrap(),
+        );
+        for (client, hostname, accepted) in [
+            (&fixture.client, "localhost", true),
+            (&fixture.client, "wrong.example", false),
+            (&unrelated.client, "localhost", false),
+        ] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let socket = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+            let (mut peer, _) = listener.accept().unwrap();
+            std::thread::scope(|scope| {
+                let server = Arc::clone(&server);
+                let worker = scope.spawn(move || {
+                    let timeout = Some(Duration::from_secs(2));
+                    peer.set_read_timeout(timeout).unwrap();
+                    peer.set_write_timeout(timeout).unwrap();
+                    let mut connection = ServerConnection::new(server).unwrap();
+                    while connection.is_handshaking() {
+                        connection.complete_io(&mut peer)?;
+                    }
+                    let mut stream = StreamOwned::new(connection, peer);
+                    let mut request = Vec::new();
+                    let mut byte = [0_u8; 1];
+                    while !request.ends_with(b"\r\n\r\n") && request.len() < 256 {
+                        stream.read_exact(&mut byte)?;
+                        request.push(byte[0]);
+                    }
+                    assert!(request.starts_with(b"GET / HTTP/1.0\r\nHost: localhost\r\n"));
+                    stream.write_all(b"HTTP/1.0 200 OK\r\n\r\nready")?;
+                    stream.conn.send_close_notify();
+                    stream.flush()
+                });
+                socket
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                socket
+                    .set_write_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                let client = ClientConnection::new(
+                    Arc::clone(client),
+                    ServerName::try_from(hostname).unwrap(),
+                )
+                .unwrap();
+                let result =
+                    qualify_https_response(StreamOwned::new(client, socket), false, "ready");
+                assert_eq!(result.is_ok(), accepted, "{hostname}: {result:?}");
+                assert_eq!(worker.join().unwrap().is_ok(), accepted);
+            });
+        }
     }
 }
